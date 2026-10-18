@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Trip Weather</title>
+  <meta name="description" content="Day-by-day weather forecasts for every stop on your trip.">
+  <meta name="theme-color" content="#2f6fde" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1724" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
+
+  <!-- Home screen / app mode -->
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Trip Weather">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+  <link rel="stylesheet" href="./style.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <div class="brand">
+        <img src="./icon.svg" alt="" width="36" height="36">
+        <div>
+          <h1>Trip Weather</h1>
+          <p class="tagline">Forecasts for every stop on your trip</p>
+        </div>
+      </div>
+    </header>
+
+    <div id="net-banner" class="net-banner" role="status" hidden>
+      <span aria-hidden="true">📡</span> You're offline. Showing saved forecasts where available.
+    </div>
+
+    <section class="panel add-panel" aria-labelledby="add-title">
+      <h2 id="add-title" class="panel-title">Add a stop</h2>
+      <form id="add-form" class="add-form" autocomplete="off" novalidate>
+        <div class="field field-city">
+          <label for="city">City</label>
+          <div class="combo">
+            <input id="city" name="city" type="text" inputmode="search" enterkeyhint="search"
+                   placeholder="Search for a city…" role="combobox" aria-autocomplete="list"
+                   aria-expanded="false" aria-controls="city-list" spellcheck="false">
+            <ul id="city-list" class="combo-list" role="listbox" aria-label="Matching cities" hidden></ul>
+          </div>
+        </div>
+        <div class="field">
+          <label for="start">Start</label>
+          <input id="start" name="start" type="date" required>
+        </div>
+        <div class="field">
+          <label for="end">End</label>
+          <input id="end" name="end" type="date" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-add">Add</button>
+      </form>
+      <p id="form-msg" class="form-msg" role="alert" aria-live="assertive"></p>
+    </section>
+
+    <div class="toolbar" role="toolbar" aria-label="Trip controls">
+      <div class="unit-toggle" role="group" aria-label="Temperature unit">
+        <button type="button" class="unit-btn" data-unit="F" aria-pressed="true">°F</button>
+        <button type="button" class="unit-btn" data-unit="C" aria-pressed="false">°C</button>
+      </div>
+      <button type="button" id="refresh-btn" class="btn btn-ghost">
+        <span class="btn-icon" aria-hidden="true">↻</span> Refresh
+      </button>
+      <button type="button" id="share-btn" class="btn btn-ghost">
+        <span class="btn-icon" aria-hidden="true">🔗</span> Copy share link
+      </button>
+      <button type="button" id="clear-btn" class="btn btn-ghost btn-danger-text">
+        <span class="btn-icon" aria-hidden="true">✕</span> Clear all
+      </button>
+    </div>
+
+    <div class="view-tabs" role="tablist" aria-label="View">
+      <button type="button" class="view-tab" role="tab" data-view="stops" aria-selected="true" aria-controls="stops">By stop</button>
+      <button type="button" class="view-tab" role="tab" data-view="report" aria-selected="false" aria-controls="report">Trip report</button>
+    </div>
+
+    <main id="stops" class="stops" aria-live="polite"></main>
+    <section id="report" class="report" aria-live="polite" hidden></section>
+
+    <footer class="app-footer">
+      Weather data by <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>.
+      Rain shows when the chance is <span id="threshold-label">30</span>% or higher.
+    </footer>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <dialog id="import-dialog" class="dialog" data-ok="replace" aria-labelledby="import-title">
+    <form method="dialog">
+      <h2 id="import-title">Import shared trip?</h2>
+      <p id="import-text"></p>
+      <ul id="import-list" class="import-list"></ul>
+      <div class="dialog-actions">
+        <button value="cancel" class="btn btn-ghost">Cancel</button>
+        <button value="merge" class="btn btn-ghost">Merge</button>
+        <button value="replace" class="btn btn-primary">Replace</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="confirm-dialog" class="dialog" aria-labelledby="confirm-title">
+    <form method="dialog">
+      <h2 id="confirm-title">Clear all stops?</h2>
+      <p id="confirm-text"></p>
+      <div class="dialog-actions">
+        <button value="cancel" class="btn btn-ghost">Cancel</button>
+        <button value="ok" class="btn btn-danger">Clear all</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="share-dialog" class="dialog" aria-labelledby="share-title">
+    <form method="dialog">
+      <h2 id="share-title">Share link</h2>
+      <p>Copy this link and open it on your other device to import your stops.</p>
+      <input id="share-input" class="share-input" type="text" readonly aria-label="Share link">
+      <div class="dialog-actions">
+        <button value="close" class="btn btn-ghost">Close</button>
+        <button type="button" id="share-copy" class="btn btn-primary">Copy</button>
+      </div>
+    </form>
+  </dialog>
+
+  <noscript><p class="noscript">Trip Weather needs JavaScript to load forecasts.</p></noscript>
+</body>
+</html>
